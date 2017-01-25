@@ -1,0 +1,30 @@
+services:
+- type: org.apache.brooklyn.entity.software.base.SameServerEntity
+  brooklyn.children:
+  - type: org.apache.brooklyn.entity.software.base.VanillaSoftwareProcess
+    name: Apache httpd
+    install.command: |
+      sudo yum -y install httpd
+      sudo yum -y install php
+      sudo yum -y install php-mysql
+      sudo yum -y install git
+      sudo setsebool httpd_can_network_connect_db=1
+
+    customize.command: |
+      git clone https://github.com/robertgmoss/demo-php-mysql-app.git
+      cd demo-php-mysql-app
+      sed -i "s|\${MYSQL_USERNAME}|${MYSQL_USERNAME}|" items.php
+      sed -i "s|\${MYSQL_PASSWORD}|${MYSQL_PASSWORD}|" items.php
+      sudo cp ./* /var/www/html/
+
+    launch.command: |
+      sudo systemctl start httpd.service
+
+    checkRunning.command: |
+      sudo systemctl status httpd.service
+
+    shell.env:
+      MYSQL_USERNAME: $brooklyn:entity("mysql").attributeWhenReady("mysql.user")
+      MYSQL_PASSWORD: $brooklyn:entity("mysql").attributeWhenReady("mysql.password")
+  - type: org.apache.brooklyn.entity.database.mysql.MySqlNode
+    id: mysql
